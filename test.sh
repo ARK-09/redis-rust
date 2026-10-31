@@ -8,8 +8,11 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Stage title from the "# Title" line; strips \r since Windows checkouts give the .md files CRLF.
+title() { head -1 "$1" | tr -d '\r' | cut -c3-; }
+
 if [ $# -eq 0 ]; then
-  for f in stages/*.md; do printf '%-26s %s\n' "$(basename "$f" .md)" "$(head -1 "$f" | cut -c3-)"; done
+  for f in stages/*.md; do printf '%-26s %s\n' "$(basename "$f" .md)" "$(title "$f")"; done
   exit
 fi
 
@@ -28,11 +31,11 @@ fi
 # Container: turn the patterns into the tester's test-case list, compile, run.
 cases=""
 for pat in "$@"; do
-  matches=(stages/*"$pat"*.md)
+  matches=(stages/*$pat*.md) # unquoted so patterns like 'base-0[1-3]' work
   [ -e "${matches[0]}" ] || { echo "no stage matches '$pat', run ./test.sh to list them" >&2; exit 1; }
   for f in "${matches[@]}"; do
     n=$(basename "$f" .md)
-    cases+="${cases:+,}{\"slug\":\"${n##*-}\",\"tester_log_prefix\":\"$n\",\"title\":\"$n: $(head -1 "$f" | cut -c3-)\"}"
+    cases+="${cases:+,}{\"slug\":\"${n##*-}\",\"tester_log_prefix\":\"$n\",\"title\":\"$n: $(title "$f")\"}"
   done
 done
 
