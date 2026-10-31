@@ -1,5 +1,8 @@
 #![allow(unused_imports)]
-use std::net::TcpListener;
+use std::{
+    io::{Read, Write},
+    net::TcpListener,
+};
 
 fn main() {
     println!("redis>");
@@ -8,8 +11,14 @@ fn main() {
 
     for stream in listener.incoming() {
         match stream {
-            Ok(_stream) => {
-                println!("accepted new connection");
+            Ok(mut _stream) => {
+                let mut buf = [0; 1024];
+
+                let bytes_read = _stream.read(&mut buf).unwrap();
+
+                let _command = String::from_utf8_lossy(&buf[..bytes_read]);
+
+                _stream.write_all(b"+PONG\r\n").unwrap();
             }
             Err(e) => {
                 println!("error: {}", e);
