@@ -1,28 +1,39 @@
-#![allow(unused_imports)]
-use std::{
-    io::{Read, Write},
-    net::TcpListener,
-};
+use tokio::net::TcpListener;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-fn main() {
-    println!("redis>");
+#[tokio::main]
+async fn main() {
+    let listener = TcpListener::bind("127.0.0.1:6379")
+        .await
+        .unwrap();
 
-    let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
+    loop {
+        let (mut socket, address) = listener.accept().await.unwrap();
 
-    for stream in listener.incoming() {
-        match stream {
-            Ok(mut _stream) => loop {
-                let mut buf = [0; 1024];
+        println!("New client: {}", address);
 
-                let bytes_read = _stream.read(&mut buf).unwrap();
+        tokio::spawn(async move {
+            let mut buf = [0; 1024];
 
-                let _command = String::from_utf8_lossy(&buf[..bytes_read]);
+            loop {
+                match socket.read(&mut buf).await {
+                    Ok(0) => break,
 
-                _stream.write_all(b"+PONG\r\n").unwrap();
-            },
-            Err(e) => {
-                println!("error: {}", e);
+                    Ok(n) => {
+                        println!(
+                            "Received: {}",
+                            String::from_utf8_lossy(&buf[..n])
+                        );
+
+                        socket.write_all(b"+PONG\r\n").await.unwrap();
+                    }
+
+                    Err(e) => {
+                        println!("Error: {e}");
+                        break;
+                    }
+                }
             }
-        }
+        });
     }
 }
